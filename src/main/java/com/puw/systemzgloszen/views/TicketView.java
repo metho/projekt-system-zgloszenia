@@ -5,6 +5,7 @@ import com.puw.systemzgloszen.entity.Ticket;
 import com.puw.systemzgloszen.model.TicketDto;
 import com.puw.systemzgloszen.entity.TicketState;
 import com.puw.systemzgloszen.repository.AppUserRepository;
+import com.puw.systemzgloszen.service.SecurityService;
 import com.puw.systemzgloszen.service.TicketService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -16,25 +17,36 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 
 import java.util.List;
 
-@Route("tickets")
+@PermitAll
+@Route("")
 public class TicketView extends VerticalLayout {
 
     private final TicketService ticketService;
     private final AppUserRepository appUserRepository;
+    private final SecurityService securityService;
     private final Grid<TicketDto> grid = new Grid<>(TicketDto.class);
 
-    public TicketView(TicketService ticketService, AppUserRepository appUserRepository) {
+    public TicketView(TicketService ticketService, AppUserRepository appUserRepository, SecurityService securityService) {
         this.ticketService = ticketService;
         this.appUserRepository = appUserRepository;
+        this.securityService = securityService;
         setSizeFull();
         setSpacing(true);
         setPadding(true);
+        Button logout = new Button("Wyloguj", click ->
+                securityService.logout());
 
         Button openDialogButton = new Button("Nowe zgłoszenie", event -> openAddTicketDialog());
         openDialogButton.getStyle().set("margin-bottom", "1rem");
+        HorizontalLayout header = new HorizontalLayout(logout);
+        header.setWidthFull();
+        header.add(openDialogButton, logout);
+        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        add(header);
 
         grid.removeAllColumns();
         grid.addColumn(TicketDto::getId).setHeader("Id");
@@ -50,11 +62,11 @@ public class TicketView extends VerticalLayout {
                 UI.getCurrent().navigate("ticket/" + ticket.getId())
         )).setHeader("Akcje");
 
-        add(openDialogButton, grid);
+        add(grid);
     }
 
     private List<TicketDto> mapToTicketDtos(List<Ticket> tickets) {
-       return tickets.stream().map(this::mapToTicketDto).toList();
+        return tickets.stream().map(this::mapToTicketDto).toList();
     }
 
     private TicketDto mapToTicketDto(Ticket ticket) {
@@ -70,7 +82,7 @@ public class TicketView extends VerticalLayout {
 
     private void openAddTicketDialog() {
         Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Create New Ticket");
+        dialog.setHeaderTitle("Utwórz nowe zgłoszenie");
 
         TextField titleField = new TextField("Tytuł");
         TextArea descriptionField = new TextArea("Opis");
@@ -78,7 +90,7 @@ public class TicketView extends VerticalLayout {
         descriptionField.setWidth(fieldsWidth);
         descriptionField.setHeight("200px");
         descriptionField.getStyle().set("resize", "vertical");
-        ComboBox<String> assigneeField = new ComboBox<>("Assignee");
+        ComboBox<String> assigneeField = new ComboBox<>("Przypisana osoba");
         List<String> usernames = appUserRepository.findAll().stream().map(AppUser::getUsername).toList();
         assigneeField.setItems(usernames);
         assigneeField.setPlaceholder("Wybierz uzytkownika");
@@ -105,7 +117,7 @@ public class TicketView extends VerticalLayout {
             }
         });
 
-        Button cancelButton = new Button("Cancel", e -> dialog.close());
+        Button cancelButton = new Button("Anuluj", e -> dialog.close());
 
         HorizontalLayout buttonLayout = new HorizontalLayout(cancelButton, saveButton);
         dialog.getFooter().add(buttonLayout);

@@ -20,11 +20,13 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.BeforeEvent;
 import com.vaadin.flow.router.HasUrlParameter;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Route("ticket")
+@PermitAll
 public class TicketDetailsView extends VerticalLayout implements HasUrlParameter<String> {
 
     private final TicketService ticketService;
