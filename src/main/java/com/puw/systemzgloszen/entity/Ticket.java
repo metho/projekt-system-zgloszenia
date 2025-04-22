@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -19,6 +20,7 @@ public class Ticket {
     List<UserComment> comments;
     @Enumerated(EnumType.STRING)
     private TicketState state;
+    private LocalDateTime creationDate;
     @ManyToOne
     @JoinColumn(name = "user_id")
     private AppUser assignee;

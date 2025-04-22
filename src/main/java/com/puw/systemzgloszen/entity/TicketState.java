@@ -5,5 +5,15 @@ public enum TicketState {
     IN_PROGRESS,
     WAITING,
     COMPLETED,
-    REJECTED
+    REJECTED;
+
+    public String toPolish() {
+        return switch (this) {
+            case TODO         -> "Do zrobienia";
+            case IN_PROGRESS  -> "W trakcie";
+            case WAITING      -> "Oczekuje";
+            case COMPLETED    -> "Zakończone";
+            case REJECTED     -> "Odrzucone";
+        };
+    }
 }

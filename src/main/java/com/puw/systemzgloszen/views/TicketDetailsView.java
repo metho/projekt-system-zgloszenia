@@ -6,7 +6,10 @@ import com.puw.systemzgloszen.entity.TicketState;
 import com.puw.systemzgloszen.entity.UserComment;
 import com.puw.systemzgloszen.repository.AppUserRepository;
 import com.puw.systemzgloszen.repository.UserCommentRepository;
+import com.puw.systemzgloszen.service.SecurityService;
 import com.puw.systemzgloszen.service.TicketService;
+import com.puw.systemzgloszen.service.UserRoleUtils;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -21,6 +24,7 @@ import com.vaadin.flow.router.BeforeEvent;
 import com.vaadin.flow.router.HasUrlParameter;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +36,7 @@ public class TicketDetailsView extends VerticalLayout implements HasUrlParameter
     private final TicketService ticketService;
     private final AppUserRepository appUserRepository;
     private final UserCommentRepository userCommentRepository;
+    private final SecurityService securityService;
     private Ticket ticket;
 
     private final VerticalLayout commentsLayout = new VerticalLayout();
@@ -41,12 +46,16 @@ public class TicketDetailsView extends VerticalLayout implements HasUrlParameter
     private final TextArea descriptionField = new TextArea("Opis");
     private final ComboBox<TicketState> stateField = new ComboBox<>("Status");
     private final ComboBox<String> assigneeField = new ComboBox<>("Przypisana osoba");
-
     private final Button saveButton = new Button("Zapisz zmiany");
+    private final Button returnButton =  new Button("Powrót", e ->UI.getCurrent().navigate("/"));
 
-    public TicketDetailsView(TicketService ticketService, AppUserRepository appUserRepository, UserCommentRepository userCommentRepository) {
+    public TicketDetailsView(TicketService ticketService, AppUserRepository appUserRepository, UserCommentRepository userCommentRepository, SecurityService securityService) {
         this.ticketService = ticketService;
         this.userCommentRepository = userCommentRepository;
+        this.securityService = securityService;
+        stateField.setItemLabelGenerator(TicketState::toPolish);
+        UserDetails authenticatedUser = securityService.getAuthenticatedUser();
+        boolean isElevatedRoleUser = UserRoleUtils.hasElevatedRole(authenticatedUser);
 
         setWidthFull();
         setAlignItems(Alignment.CENTER);
@@ -97,14 +106,17 @@ public class TicketDetailsView extends VerticalLayout implements HasUrlParameter
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1)
         );
-        formLayout.add(descriptionField, stateField, assigneeField);
+        formLayout.add(descriptionField, stateField);
+        if (isElevatedRoleUser) {
+            formLayout.add(assigneeField);
+        }
 
         VerticalLayout layout = new VerticalLayout(title, formLayout, saveButton);
         layout.setSpacing(true);
         layout.setAlignItems(Alignment.STRETCH);
 
         card.add(layout);
-        add(card);
+        add(returnButton);
         add(card, commentSection);
         this.appUserRepository = appUserRepository;
     }
@@ -170,7 +182,7 @@ public class TicketDetailsView extends VerticalLayout implements HasUrlParameter
     }
 
     private void showTicketDetails() {
-        title.setText("Ticket #" + ticket.getId() + ": " + ticket.getTitle());
+        title.setText("Zgłoszenie " + ticket.getId() + ": " + ticket.getTitle());
         descriptionField.setValue(ticket.getDescription());
         stateField.setValue(ticket.getState());
         assigneeField.setValue(ticket.getAssignee().getUsername());
@@ -180,7 +192,7 @@ public class TicketDetailsView extends VerticalLayout implements HasUrlParameter
     private void saveChanges() {
         ticket.setDescription(descriptionField.getValue());
         ticket.setState(stateField.getValue());
-        AppUser appUser = appUserRepository.findByUsername(ticket.getAssignee().getUsername());
+        AppUser appUser = appUserRepository.findByUsername(assigneeField.getValue());
         ticket.setAssignee(appUser);
 
         ticketService.save(ticket);

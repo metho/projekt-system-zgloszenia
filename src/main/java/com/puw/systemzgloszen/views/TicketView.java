@@ -2,11 +2,12 @@ package com.puw.systemzgloszen.views;
 
 import com.puw.systemzgloszen.entity.AppUser;
 import com.puw.systemzgloszen.entity.Ticket;
-import com.puw.systemzgloszen.model.TicketDto;
 import com.puw.systemzgloszen.entity.TicketState;
+import com.puw.systemzgloszen.model.TicketDto;
 import com.puw.systemzgloszen.repository.AppUserRepository;
 import com.puw.systemzgloszen.service.SecurityService;
 import com.puw.systemzgloszen.service.TicketService;
+import com.puw.systemzgloszen.service.UserRoleUtils;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -18,12 +19,19 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
+import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @PermitAll
 @Route("")
 public class TicketView extends VerticalLayout {
+
+    private static final DateTimeFormatter UI_FORMAT =
+            DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm", new Locale("pl", "PL"));
 
     private final TicketService ticketService;
     private final AppUserRepository appUserRepository;
@@ -34,6 +42,9 @@ public class TicketView extends VerticalLayout {
         this.ticketService = ticketService;
         this.appUserRepository = appUserRepository;
         this.securityService = securityService;
+
+
+
         setSizeFull();
         setSpacing(true);
         setPadding(true);
@@ -41,6 +52,9 @@ public class TicketView extends VerticalLayout {
                 securityService.logout());
 
         Button openDialogButton = new Button("Nowe zgłoszenie", event -> openAddTicketDialog());
+        UserDetails authenticatedUser = securityService.getAuthenticatedUser();
+        boolean isElevatedRoleUser = UserRoleUtils.hasElevatedRole(authenticatedUser);
+        openDialogButton.setEnabled(isElevatedRoleUser);
         openDialogButton.getStyle().set("margin-bottom", "1rem");
         HorizontalLayout header = new HorizontalLayout(logout);
         header.setWidthFull();
@@ -52,10 +66,16 @@ public class TicketView extends VerticalLayout {
         grid.addColumn(TicketDto::getId).setHeader("Id");
         grid.addColumn(TicketDto::getTitle).setHeader("Tytuł");
         grid.addColumn(TicketDto::getDescription).setHeader("Opis");
-        grid.addColumn(ticket -> ticket.getState().toString()).setHeader("Status");
+        grid.addColumn(ticket -> ticket.getState().toPolish()).setHeader("Status");
         grid.addColumn(TicketDto::getAssignee).setHeader("Przypisana osoba");
+        grid.addColumn(ticket -> ticket.getCreationDate().format(UI_FORMAT)).setHeader("Data utworzenia");
 
         List<TicketDto> tickets = mapToTicketDtos(ticketService.findAll());
+        if (!isElevatedRoleUser) {
+            tickets = tickets.stream()
+                    .filter(t -> t.getAssignee().equals(authenticatedUser.getUsername()))
+                    .toList();
+        }
         grid.setItems(tickets);
 
         grid.addComponentColumn(ticket -> new Button("Wyświetl", e ->
@@ -75,6 +95,7 @@ public class TicketView extends VerticalLayout {
         ticketDto.setTitle(ticket.getTitle());
         ticketDto.setDescription(ticket.getDescription());
         ticketDto.setState(ticket.getState());
+        ticketDto.setCreationDate(ticket.getCreationDate());
         String assignee = ticket.getAssignee() != null ? ticket.getAssignee().getUsername() : "";
         ticketDto.setAssignee(assignee);
         return ticketDto;
@@ -110,6 +131,7 @@ public class TicketView extends VerticalLayout {
                 ticket.setTitle(titleField.getValue());
                 ticket.setDescription(descriptionField.getValue());
                 ticket.setState(TicketState.TODO);
+                ticket.setCreationDate(LocalDateTime.now());
                 ticket.setAssignee(appUserRepository.findByUsername((assigneeField.getValue())));
                 ticketService.save(ticket);
                 refreshGrid();

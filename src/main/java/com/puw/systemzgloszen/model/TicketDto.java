@@ -4,6 +4,8 @@ import com.puw.systemzgloszen.entity.TicketState;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 public class TicketDto {
@@ -12,4 +14,5 @@ public class TicketDto {
     private String description;
     private TicketState state;
     private String assignee;
+    private LocalDateTime creationDate;
 }
