@@ -13,10 +13,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Paragraph;
-import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
@@ -27,11 +24,16 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Route("ticket")
 @PermitAll
 public class TicketDetailsView extends VerticalLayout implements HasUrlParameter<String> {
+
+    private static final DateTimeFormatter UI_FORMAT =
+            DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm", new Locale("pl", "PL"));
 
     private final TicketService ticketService;
     private final AppUserRepository appUserRepository;
@@ -42,7 +44,7 @@ public class TicketDetailsView extends VerticalLayout implements HasUrlParameter
     private final VerticalLayout commentsLayout = new VerticalLayout();
     private final TextArea commentInput = new TextArea("Dodaj komentarz");
     private final Button addCommentButton = new Button("Dodaj");
-    private final H2 title = new H2();
+    private final H3 title = new H3();
     private final TextArea descriptionField = new TextArea("Opis");
     private final ComboBox<TicketState> stateField = new ComboBox<>("Status");
     private final ComboBox<String> assigneeField = new ComboBox<>("Przypisana osoba");
@@ -70,10 +72,9 @@ public class TicketDetailsView extends VerticalLayout implements HasUrlParameter
                 .set("borderRadius", "12px")
                 .set("backgroundColor", "#fff");
 
-        title.getStyle().set("margin-bottom", "1.5rem");
 
         descriptionField.setWidthFull();
-        descriptionField.setHeight("120px");
+        descriptionField.setHeight("300px");
 
         stateField.setItems(TicketState.values());
         stateField.setWidthFull();
@@ -162,7 +163,7 @@ public class TicketDetailsView extends VerticalLayout implements HasUrlParameter
             Span author = new Span(comment.getUser().getUsername());
             author.getStyle().set("font-weight", "bold");
 
-            Span timestamp = new Span(comment.getCommentDate().toString());
+            Span timestamp = new Span(comment.getCommentDate().format(UI_FORMAT));
             timestamp.getStyle().set("color", "#888").set("font-size", "12px");
 
             Paragraph text = new Paragraph(comment.getComment());

@@ -12,11 +12,13 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.provider.ListDataProvider;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,6 +27,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 @PermitAll
 @Route("")
@@ -37,38 +40,49 @@ public class TicketView extends VerticalLayout {
     private final AppUserRepository appUserRepository;
     private final SecurityService securityService;
     private final Grid<TicketDto> grid = new Grid<>(TicketDto.class);
+    private final TextField keywordFilter     = new TextField();
+    private final ComboBox<TicketState> stateFilter = new ComboBox<>();
+    private final ComboBox<String> assigneeFilter  = new ComboBox<>();
 
     public TicketView(TicketService ticketService, AppUserRepository appUserRepository, SecurityService securityService) {
         this.ticketService = ticketService;
         this.appUserRepository = appUserRepository;
         this.securityService = securityService;
 
+        UserDetails authenticatedUser = securityService.getAuthenticatedUser();
+        boolean isElevatedRoleUser = UserRoleUtils.hasElevatedRole(authenticatedUser);
+        createHeader(isElevatedRoleUser);
 
+        //filtry
+        keywordFilter.setPlaceholder("Tytuł, opis lub numer zgłoszenia");
+        keywordFilter.setClearButtonVisible(true);
+        keywordFilter.setWidth("270px");
+
+        stateFilter.setPlaceholder("Status");
+        stateFilter.setItems(TicketState.values());
+        stateFilter.setItemLabelGenerator(TicketState::toPolish);
+        stateFilter.setClearButtonVisible(true);
+
+        assigneeFilter.setPlaceholder("Przypisana osoba");
+        assigneeFilter.setItems(appUserRepository.findAll().stream().map(AppUser::getUsername).toList());
+        assigneeFilter.setClearButtonVisible(true);
+
+        HorizontalLayout filters = new HorizontalLayout(keywordFilter, stateFilter, assigneeFilter);
+        filters.setWidthFull();
+        filters.setDefaultVerticalComponentAlignment(Alignment.END);
+        add(filters);
 
         setSizeFull();
         setSpacing(true);
         setPadding(true);
-        Button logout = new Button("Wyloguj", click ->
-                securityService.logout());
-
-        Button openDialogButton = new Button("Nowe zgłoszenie", event -> openAddTicketDialog());
-        UserDetails authenticatedUser = securityService.getAuthenticatedUser();
-        boolean isElevatedRoleUser = UserRoleUtils.hasElevatedRole(authenticatedUser);
-        openDialogButton.setEnabled(isElevatedRoleUser);
-        openDialogButton.getStyle().set("margin-bottom", "1rem");
-        HorizontalLayout header = new HorizontalLayout(logout);
-        header.setWidthFull();
-        header.add(openDialogButton, logout);
-        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
-        add(header);
 
         grid.removeAllColumns();
-        grid.addColumn(TicketDto::getId).setHeader("Id");
-        grid.addColumn(TicketDto::getTitle).setHeader("Tytuł");
-        grid.addColumn(TicketDto::getDescription).setHeader("Opis");
-        grid.addColumn(ticket -> ticket.getState().toPolish()).setHeader("Status");
-        grid.addColumn(TicketDto::getAssignee).setHeader("Przypisana osoba");
-        grid.addColumn(ticket -> ticket.getCreationDate().format(UI_FORMAT)).setHeader("Data utworzenia");
+        grid.addColumn(TicketDto::getId).setHeader("Numer zgłoszenia").setAutoWidth(true).setTextAlign(ColumnTextAlign.CENTER);
+        grid.addColumn(TicketDto::getTitle).setHeader("Tytuł").setAutoWidth(true);
+        grid.addColumn(TicketDto::getDescription).setHeader("Opis").setAutoWidth(true);
+        grid.addColumn(ticket -> ticket.getState().toPolish()).setHeader("Status").setAutoWidth(true);
+        grid.addColumn(TicketDto::getAssignee).setHeader("Przypisana osoba").setAutoWidth(true);
+        grid.addColumn(ticket -> ticket.getCreationDate().format(UI_FORMAT)).setHeader("Data utworzenia").setAutoWidth(true);
 
         List<TicketDto> tickets = mapToTicketDtos(ticketService.findAll());
         if (!isElevatedRoleUser) {
@@ -76,13 +90,46 @@ public class TicketView extends VerticalLayout {
                     .filter(t -> t.getAssignee().equals(authenticatedUser.getUsername()))
                     .toList();
         }
-        grid.setItems(tickets);
+        ListDataProvider<TicketDto> dataProvider = new ListDataProvider<>(tickets);
+        grid.setDataProvider(dataProvider);
+        dataProvider.addFilter(ticket -> {
+            String kw = keywordFilter.getValue().trim().toLowerCase();
+            boolean keywordOk = kw.isEmpty() ||
+                    ticket.getTitle().toLowerCase().contains(kw) ||
+                    ticket.getId().toString().contains(kw) ||
+                    ticket.getDescription().toLowerCase().contains(kw);
+
+            boolean stateOk = stateFilter.isEmpty() ||
+                    ticket.getState() == stateFilter.getValue();
+
+            boolean assigneeOk = assigneeFilter.isEmpty() ||
+                    Objects.equals(ticket.getAssignee(), assigneeFilter.getValue());
+
+            return keywordOk && stateOk && assigneeOk;
+        });
+        keywordFilter.addValueChangeListener(e -> dataProvider.refreshAll());
+        stateFilter.addValueChangeListener(e -> dataProvider.refreshAll());
+        assigneeFilter.addValueChangeListener(e -> dataProvider.refreshAll());
 
         grid.addComponentColumn(ticket -> new Button("Wyświetl", e ->
                 UI.getCurrent().navigate("ticket/" + ticket.getId())
         )).setHeader("Akcje");
 
         add(grid);
+    }
+
+    private void createHeader(boolean isElevatedRoleUser) {
+        Button logout = new Button("Wyloguj", click ->
+                securityService.logout());
+
+        Button openDialogButton = new Button("Nowe zgłoszenie", event -> openAddTicketDialog());
+        openDialogButton.setEnabled(isElevatedRoleUser);
+        openDialogButton.getStyle().set("margin-bottom", "1rem");
+        HorizontalLayout header = new HorizontalLayout(logout);
+        header.setWidthFull();
+        header.add(openDialogButton, logout);
+        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        add(header);
     }
 
     private List<TicketDto> mapToTicketDtos(List<Ticket> tickets) {

@@ -9,7 +9,7 @@ public enum TicketState {
 
     public String toPolish() {
         return switch (this) {
-            case TODO         -> "Do zrobienia";
+            case TODO         -> "Do realizacji";
             case IN_PROGRESS  -> "W trakcie";
             case WAITING      -> "Oczekuje";
             case COMPLETED    -> "Zakończone";
