@@ -12,7 +12,7 @@ public enum TicketState {
             case TODO         -> "Do realizacji";
             case IN_PROGRESS  -> "W trakcie";
             case WAITING      -> "Oczekuje";
-            case COMPLETED    -> "Zakończone";
+            case COMPLETED    -> "Rozwiązane";
             case REJECTED     -> "Odrzucone";
         };
     }

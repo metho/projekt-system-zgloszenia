@@ -77,12 +77,12 @@ public class TicketView extends VerticalLayout {
         setPadding(true);
 
         grid.removeAllColumns();
-        grid.addColumn(TicketDto::getId).setHeader("Numer zgłoszenia").setAutoWidth(true).setTextAlign(ColumnTextAlign.CENTER);
+        grid.addColumn(TicketDto::getId).setHeader("Numer zgłoszenia").setWidth("5%").setTextAlign(ColumnTextAlign.CENTER);
         grid.addColumn(TicketDto::getTitle).setHeader("Tytuł").setAutoWidth(true);
         grid.addColumn(TicketDto::getDescription).setHeader("Opis").setAutoWidth(true);
-        grid.addColumn(ticket -> ticket.getState().toPolish()).setHeader("Status").setAutoWidth(true);
-        grid.addColumn(TicketDto::getAssignee).setHeader("Przypisana osoba").setAutoWidth(true);
-        grid.addColumn(ticket -> ticket.getCreationDate().format(UI_FORMAT)).setHeader("Data utworzenia").setAutoWidth(true);
+        grid.addColumn(ticket -> ticket.getState().toPolish()).setHeader("Status").setWidth("5%");
+        grid.addColumn(TicketDto::getAssignee).setHeader("Przypisana osoba").setWidth("5%");
+        grid.addColumn(ticket -> ticket.getCreationDate().format(UI_FORMAT)).setHeader("Data utworzenia").setWidth("5%");
 
         List<TicketDto> tickets = mapToTicketDtos(ticketService.findAll());
         if (!isElevatedRoleUser) {
